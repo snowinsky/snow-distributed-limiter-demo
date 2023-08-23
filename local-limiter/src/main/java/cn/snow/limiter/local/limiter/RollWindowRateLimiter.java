@@ -1,12 +1,15 @@
 package cn.snow.limiter.local.limiter;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -18,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
  * 滑动窗口限流其实是在固定窗口限流的基础上做的优化，把固定的时间窗口变成了一堆的小窗口。让窗口的挪动不那么生硬。从而避免被瞬时高流量击穿。
  */
 @Slf4j
+@SuppressWarnings("all")
 public class RollWindowRateLimiter implements RateLimiter {
 
     @Getter
@@ -43,29 +47,25 @@ public class RollWindowRateLimiter implements RateLimiter {
     @Override
     public synchronized boolean goThroughLimiter() {
         long currentTime = System.currentTimeMillis();
-        if (currentTime - previousReqTime >= getSubFixWindowMillis()) {
+        expiredSubWindowCounter(currentTime);
+        if (subWindowCounter.isEmpty() || currentTime - previousReqTime >= getSubFixWindowMillis()) {
             subWindowCounter.put(currentTime, new AtomicInteger(0));
             previousReqTime = currentTime;
-        } else {
-            Long key = subWindowCounter.keySet().stream().filter(new Predicate<Long>() {
-                @Override
-                public boolean test(Long aLong) {
-                    return currentTime >= aLong;
-                }
-            }).findFirst().orElse(null);
-            if (key == null) {
-                subWindowCounter.put(currentTime, new AtomicInteger(1));
-            } else {
-                subWindowCounter.get(key).incrementAndGet();
-            }
         }
         if (sumTotalSubFixWindowCount() >= getMaxReqCountPerFixWindowsMillis()) {
-            log.warn("over limit, reject....");
+            log.warn("over limit, reject..{}..\n", subWindowCounter);
             return false;
         }
-        log.info("pass the limit...");
+        subWindowCounter.get(subWindowCounter.getLastKey()).incrementAndGet();
+        log.info("pass the limit..{}.\n", subWindowCounter);
         return true;
 
+    }
+
+    private void expiredSubWindowCounter(long currentTime) {
+        final long s = currentTime - getFixWindowMillis();
+        Set<Long> sl = subWindowCounter.keySet().stream().filter(a-> a < s).collect(Collectors.toSet());
+        sl.forEach(subWindowCounter::removeKey);
     }
 
     private int sumTotalSubFixWindowCount() {
@@ -93,7 +93,7 @@ public class RollWindowRateLimiter implements RateLimiter {
 
         RollWindowRateLimiter a = new RollWindowRateLimiter(2, 1000);
         //请求每100ms发一个，一秒钟发10个，如果没有限流，10个都通过。现在限流一秒钟限制1个，那么下面应该极限也就过2个
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 15; i++) {
             pool.execute(() -> {
                 a.goThroughLimiter();
             });
@@ -106,6 +106,7 @@ public class RollWindowRateLimiter implements RateLimiter {
         pool.shutdown();
     }
 
+    @EqualsAndHashCode(callSuper = true)
     public static class FixLengthQueueMap<K, V> extends LinkedHashMap<K, V> {
 
         private static final long serialVersionUID = 5667132395384549782L;
@@ -115,6 +116,18 @@ public class RollWindowRateLimiter implements RateLimiter {
         public FixLengthQueueMap(int capacity) {
             super(capacity + 1, 1.0f, true);
             this.capacity = capacity;
+        }
+
+        public K getFirstKey() {
+            return new LinkedList<K>(keySet()).getFirst();
+        }
+
+        public K getLastKey() {
+            return new LinkedList<K>(keySet()).getLast();
+        }
+
+        public void removeKey(K key){
+            keySet().removeIf(k -> k.equals(key));
         }
 
         @Override
