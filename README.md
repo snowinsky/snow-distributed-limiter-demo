@@ -34,18 +34,18 @@
 - pexpiretime 返回unix毫秒计时间戳
 - pttl 返回毫秒级过期时间
 - randomkey 随机返回一个key
-- rename 
-- renamenx
-- restore
-- scan
-- sort
-- sort_ro
-- rouch
-- ttl
-- type
-- unlink
-- wait
-- waitaof
+- rename 修改一个key的名字，覆盖已有的
+- renamenx 修改一个key的名字为不存在的名字
+- restore 和set类似，只是restore存的key的value必须是dump出来的格式的
+- scan 遍历所有的key在这个database中的
+- sort 排序list，set等有多个元素的数据类型，并保存
+- sort_ro 排序list， set等有多个元素的数据类型，直接返回，不保存
+- touch 修改key的最新访问时间，返回touch的key的个数 
+- ttl 设置key的过期时间
+- type 返回key对应的value的类型
+- unlink 异步删除多个key
+- wait 同步等待持久化备份完成
+- waitaof 异步等待持久化备份完成
 
 
 
@@ -72,6 +72,7 @@
 - setrange 替换，用一个字符串去替换value中从某一位置开始之后的字符串
 - strlen 返回value的length
 - substr 返回value的其中一部分，被getrange(更容易看明白，这只是读，不是写)替代了
+
 ### hash(value=hash map<field, fieldValue>)
 - hdel 删除fields和fieldValue，没field了就删除hash map
 - hexists 判断field是否存在
@@ -89,6 +90,7 @@
 - hsetnx 如果field不存在，新增这个值
 - hstrlen 返回field的value的长度
 - hvals 返回hash map的valueList
+
 ### list(value=list<element>)
 - blmove blocking list move把src list拼到des list的左边
 - blmpop blocking list multiple pop，同时pop出多个list的最左边的元素
@@ -112,6 +114,7 @@
 - rpoplpush right 右边pop左边放入，类似于一个管子对接另一个管子
 - rpush right 从右边新增一个元素
 - rpushx right 从右边新增一个元素，key不存在也不新增
+
 ### set(value=set<member>)
 - sadd 新增一个memeber到set中
 - scard 返回set的length
@@ -130,6 +133,7 @@
 - sscan 遍历所有的member
 - sunion 求多个set的并集
 - sunionstore sunion的结果存入一个新set
+
 ### sorted set(value=set<member order by score> )
 - bzmpop 批量pop出多个member
 - bzpopmax pop出score最高的member
@@ -167,4 +171,12 @@
 - zunion 交集
 - zunionstore 交集存储
 
+### bitmap(其实就是一词多义，用一个字段存储很多很多的含义。就是把一个string当成一堆标识位来用 string(10101110110101))
+- bitcount value中设置成1的位置的个数
+- bitfield 
+- bitfield_ro
+- bitop 对多个位置上的值进行按位运算
+- bitpos 
+- getbit 获取value中某一位置的值
+- setbit 把value中某一位置的值设置成0或者1
 

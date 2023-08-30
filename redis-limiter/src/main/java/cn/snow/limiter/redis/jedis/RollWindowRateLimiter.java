@@ -11,8 +11,6 @@ import lombok.EqualsAndHashCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import redis.clients.jedis.Jedis;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
 
 /**
  * 滑动窗口限流
@@ -33,15 +31,17 @@ public class RollWindowRateLimiter implements RateLimiter {
 
     @Override
     public synchronized boolean goThroughLimiter() {
-        long currentTime = System.nanoTime();
-        final String apiUrl = "apiUrl";
-        Pipeline pipeline = jedis.pipelined();
-        pipeline.zremrangeByScore(apiUrl, currentTime - fixWindowMillis * 1000000, currentTime);
-        Response<Long> zsetCount = pipeline.zcard(apiUrl);
-        pipeline.expire(apiUrl, fixWindowMillis / 1000);
-        pipeline.zadd(apiUrl, currentTime, currentTime + "");
-        pipeline.syncAndReturnAll();
-        return zsetCount.get() + 1 <= maxReqCountPerFixWindowsMillis;
+        long currentTime = System.currentTimeMillis();
+        final String apiUrl = "rollWindowJedis";
+        long countRangeByScore = jedis.zcount(apiUrl, currentTime - fixWindowMillis, currentTime);
+        if (countRangeByScore + 1 <= maxReqCountPerFixWindowsMillis) {
+            long isZadd = jedis.zadd(apiUrl, currentTime, currentTime + "");
+            if (countRangeByScore == 0 && isZadd == 1) {
+                jedis.expire(apiUrl, fixWindowMillis / 1000);
+            }
+            return true;
+        }
+        return false;
     }
 
     static ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -63,7 +63,7 @@ public class RollWindowRateLimiter implements RateLimiter {
 
         RollWindowRateLimiter a = new RollWindowRateLimiter(2, 1000, new JedisClientFactory().jedisClient());
         //请求每100ms发一个，一秒钟发10个，如果没有限流，10个都通过。现在限流一秒钟限制1个，那么下面应该极限也就过2个
-        for (int i = 0; i < 15; i++) {
+        for (int i = 0; i < 30; i++) {
             pool.execute(() -> {
                 log.info("{}", a.goThroughLimiter());
             });
