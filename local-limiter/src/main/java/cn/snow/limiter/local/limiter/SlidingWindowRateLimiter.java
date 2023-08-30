@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @SuppressWarnings("all")
-public class RollWindowRateLimiter implements RateLimiter {
+public class SlidingWindowRateLimiter implements RateLimiter {
 
     @Getter
     private final int maxReqCountPerFixWindowsMillis;
@@ -35,7 +35,7 @@ public class RollWindowRateLimiter implements RateLimiter {
 
     private long previousReqTime;
 
-    public RollWindowRateLimiter(int maxReqCountPerFixWindowsMillis, long fixWindowMillis) {
+    public SlidingWindowRateLimiter(int maxReqCountPerFixWindowsMillis, long fixWindowMillis) {
         this.maxReqCountPerFixWindowsMillis = maxReqCountPerFixWindowsMillis == 0 ? 5 : maxReqCountPerFixWindowsMillis;
         this.fixWindowMillis = fixWindowMillis == 0 ? 1000 : fixWindowMillis;
         subFixWindowMillis = 500;
@@ -91,7 +91,7 @@ public class RollWindowRateLimiter implements RateLimiter {
         }*/
 
 
-        RollWindowRateLimiter a = new RollWindowRateLimiter(2, 1000);
+        SlidingWindowRateLimiter a = new SlidingWindowRateLimiter(2, 1000);
         //请求每100ms发一个，一秒钟发10个，如果没有限流，10个都通过。现在限流一秒钟限制1个，那么下面应该极限也就过2个
         for (int i = 0; i < 15; i++) {
             pool.execute(() -> {

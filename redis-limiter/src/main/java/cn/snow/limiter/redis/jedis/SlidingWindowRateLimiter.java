@@ -22,7 +22,7 @@ import redis.clients.jedis.Jedis;
 @Slf4j
 @SuppressWarnings("all")
 @RequiredArgsConstructor
-public class RollWindowRateLimiter implements RateLimiter {
+public class SlidingWindowRateLimiter implements RateLimiter {
 
     private final int maxReqCountPerFixWindowsMillis;
     private final long fixWindowMillis;
@@ -61,7 +61,7 @@ public class RollWindowRateLimiter implements RateLimiter {
         }*/
 
 
-        RollWindowRateLimiter a = new RollWindowRateLimiter(2, 1000, new JedisClientFactory().jedisClient());
+        SlidingWindowRateLimiter a = new SlidingWindowRateLimiter(2, 1000, new JedisClientFactory().jedisClient());
         //请求每100ms发一个，一秒钟发10个，如果没有限流，10个都通过。现在限流一秒钟限制1个，那么下面应该极限也就过2个
         for (int i = 0; i < 30; i++) {
             pool.execute(() -> {
